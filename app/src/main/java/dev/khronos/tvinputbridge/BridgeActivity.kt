@@ -1,8 +1,8 @@
 package dev.khronos.tvinputbridge
 
 import android.os.Bundle
+import android.os.PowerManager
 import android.view.KeyEvent
-import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,6 +19,8 @@ class BridgeActivity : AppCompatActivity() {
     }
 
     private val inputHdmiUrl = "http://192.168.1.130:8765/input_hdmi"
+    private var pausedByScreenOff = false
+    private var finishingFromSleep = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,9 +29,27 @@ class BridgeActivity : AppCompatActivity() {
         isTvMode = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (pausedByScreenOff && isTvMode) {
+            // スリープ復帰: ホーム画面を見せるだけ。isTvModeは維持してお気に入り/ホームに委ねる
+            pausedByScreenOff = false
+            finishingFromSleep = true
+            finish()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val pm = getSystemService(PowerManager::class.java)
+        pausedByScreenOff = !pm.isInteractive
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        isTvMode = false
+        if (!finishingFromSleep) {
+            isTvMode = false
+        }
         instance = null
     }
 

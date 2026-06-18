@@ -10,6 +10,7 @@ import java.net.URL
 class BridgeAccessibilityService : AccessibilityService() {
 
     private val tvOffUrl = "http://192.168.1.130:8765/tv_off"
+    private val inputHdmiUrl = "http://192.168.1.130:8765/input_hdmi"
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -17,7 +18,24 @@ class BridgeAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        Log.d("BridgeAS", "keyCode=${event.keyCode} action=${event.action}")
+        Log.d("BridgeAS", "keyCode=${event.keyCode} action=${event.action} isTvMode=${BridgeActivity.isTvMode}")
+        if (event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
+            BridgeActivity.isTvMode = false
+            val thread = Thread {
+                runCatching {
+                    val conn = URL(inputHdmiUrl).openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.doOutput = true
+                    conn.outputStream.write("{}".toByteArray())
+                    conn.responseCode
+                    conn.disconnect()
+                }
+            }
+            thread.start()
+            thread.join(2000)
+            return false  // ホーム画面遷移はシステムに任せる
+        }
         if (event.keyCode == 313 /* KEYCODE_MACRO_2: favorites */ && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
             val thread = Thread {
                 runCatching {
@@ -32,6 +50,7 @@ class BridgeAccessibilityService : AccessibilityService() {
             }
             thread.start()
             thread.join(3000)
+            BridgeActivity.isTvMode = false
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 BridgeActivity.finishInstance()
