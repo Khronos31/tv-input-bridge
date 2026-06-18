@@ -18,7 +18,7 @@ class BridgeAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         Log.d("BridgeAS", "keyCode=${event.keyCode} action=${event.action}")
-        if (event.keyCode == KeyEvent.KEYCODE_POWER && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
+        if (event.keyCode == 313 /* KEYCODE_MACRO_2: favorites */ && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
             val thread = Thread {
                 runCatching {
                     val conn = URL(tvOffUrl).openConnection() as HttpURLConnection
@@ -33,7 +33,9 @@ class BridgeAccessibilityService : AccessibilityService() {
             thread.start()
             thread.join(3000)
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
-            BridgeActivity.finishInstance()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                BridgeActivity.finishInstance()
+            }, 1000)
             return true
         }
         return false
