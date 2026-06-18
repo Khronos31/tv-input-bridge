@@ -11,6 +11,11 @@ class BridgeActivity : AppCompatActivity() {
 
     companion object {
         var isTvMode = false
+        private var instance: java.lang.ref.WeakReference<BridgeActivity>? = null
+
+        fun finishInstance() {
+            instance?.get()?.finish()
+        }
     }
 
     private val inputHdmiUrl = "http://192.168.1.130:8765/input_hdmi"
@@ -18,12 +23,14 @@ class BridgeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_bridge)
+        instance = java.lang.ref.WeakReference(this)
         isTvMode = true
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isTvMode = false
+        instance = null
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

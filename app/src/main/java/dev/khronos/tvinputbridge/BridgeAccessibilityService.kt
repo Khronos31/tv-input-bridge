@@ -33,6 +33,7 @@ class BridgeAccessibilityService : AccessibilityService() {
             thread.start()
             thread.join(3000)
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+            BridgeActivity.finishInstance()
             return true
         }
         return false
