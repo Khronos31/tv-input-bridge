@@ -2,10 +2,9 @@ package dev.khronos.tvinputbridge
 
 import android.os.Bundle
 import android.os.PowerManager
+import android.util.Log
 import android.view.KeyEvent
 import androidx.appcompat.app.AppCompatActivity
-import java.net.HttpURLConnection
-import java.net.URL
 
 class BridgeActivity : AppCompatActivity() {
 
@@ -18,7 +17,6 @@ class BridgeActivity : AppCompatActivity() {
         }
     }
 
-    private val inputHdmiUrl = "http://192.168.1.130:8765/input_hdmi"
     private var pausedByScreenOff = false
     private var finishingFromSleep = false
 
@@ -55,27 +53,18 @@ class BridgeActivity : AppCompatActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            isTvMode = false
-            postInputHdmi()
-            finish()
+            Thread {
+                if (BridgeApi.postInputHdmi()) {
+                    runOnUiThread {
+                        isTvMode = false
+                        finish()
+                    }
+                } else {
+                    Log.w("BridgeActivity", "input_hdmi request failed")
+                }
+            }.start()
             return true
         }
         return super.onKeyDown(keyCode, event)
-    }
-
-    private fun postInputHdmi() {
-        val thread = Thread {
-            runCatching {
-                val conn = URL(inputHdmiUrl).openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.doOutput = true
-                conn.outputStream.write("{}".toByteArray())
-                conn.responseCode
-                conn.disconnect()
-            }
-        }
-        thread.start()
-        thread.join(2000)
     }
 }

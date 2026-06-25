@@ -1,16 +1,13 @@
 package dev.khronos.tvinputbridge
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
-import java.net.HttpURLConnection
-import java.net.URL
 
 class BridgeAccessibilityService : AccessibilityService() {
-
-    private val tvOffUrl = "http://192.168.1.130:8765/tv_off"
-    private val inputHdmiUrl = "http://192.168.1.130:8765/input_hdmi"
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -20,41 +17,28 @@ class BridgeAccessibilityService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent): Boolean {
         Log.d("BridgeAS", "keyCode=${event.keyCode} action=${event.action} isTvMode=${BridgeActivity.isTvMode}")
         if (event.keyCode == KeyEvent.KEYCODE_HOME && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
-            BridgeActivity.isTvMode = false
-            val thread = Thread {
-                runCatching {
-                    val conn = URL(inputHdmiUrl).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.doOutput = true
-                    conn.outputStream.write("{}".toByteArray())
-                    conn.responseCode
-                    conn.disconnect()
+            Thread {
+                if (BridgeApi.postInputHdmi()) {
+                    BridgeActivity.isTvMode = false
                 }
-            }
-            thread.start()
-            thread.join(2000)
+            }.start()
             return false  // ホーム画面遷移はシステムに任せる
         }
         if (event.keyCode == 313 /* KEYCODE_MACRO_2: favorites */ && event.action == KeyEvent.ACTION_DOWN && BridgeActivity.isTvMode) {
-            val thread = Thread {
-                runCatching {
-                    val conn = URL(tvOffUrl).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.doOutput = true
-                    conn.outputStream.write("{}".toByteArray())
-                    conn.responseCode
-                    conn.disconnect()
+            Thread {
+                if (BridgeApi.postTvOff()) {
+                    val mainHandler = Handler(Looper.getMainLooper())
+                    mainHandler.post {
+                        BridgeActivity.isTvMode = false
+                        performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+                        mainHandler.postDelayed({
+                            BridgeActivity.finishInstance()
+                        }, 1000)
+                    }
+                } else {
+                    Log.w("BridgeAS", "tv_off request failed")
                 }
-            }
-            thread.start()
-            thread.join(3000)
-            BridgeActivity.isTvMode = false
-            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                BridgeActivity.finishInstance()
-            }, 1000)
+            }.start()
             return true
         }
         return false
